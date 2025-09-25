@@ -32,6 +32,15 @@ class EightCarQueen:
         tk.Button(control_frame, text="Hill Climbing (Cars)", 
             command=self.hill_climbing, width=18)\
             .grid(row=0, column=1, padx=10)
+
+        tk.Button(control_frame, text="Simulated Annealing (Cars)", 
+            command=self.simulated_annealing, width=22)\
+            .grid(row=0, column=2, padx=10)
+
+        tk.Button(control_frame, text="Genetic Algorithm (Cars)", 
+            command=self.genetic_algorithm, width=22)\
+            .grid(row=0, column=4, padx=10)
+
         
         # Chọn beam width
         tk.Label(control_frame, text="Beam width:", bg="lightgray").grid(row=1, column=0, pady=10)
@@ -144,6 +153,84 @@ class EightCarQueen:
             self.root.after(self.delay, step)
 
         step()
+
+    def simulated_annealing(self, max_iter=5000, start_temp=100.0, cooling=0.99):
+        # Khởi tạo trạng thái ngẫu nhiên
+        current = [random.randint(0, 7) for _ in range(8)]
+        current_value = -self.heuristic(current)  
+
+        temp = start_temp
+        for step in range(max_iter):
+            # Sinh neighbor ngẫu nhiên
+            row = random.randint(0, 7)
+            col = random.randint(0, 7)
+            while col == current[row]:
+                col = random.randint(0, 7)
+
+            neighbor = current[:]
+            neighbor[row] = col
+            neighbor_value = -self.heuristic(neighbor)
+
+            delta = neighbor_value - current_value
+            # Nếu tốt hơn hoặc chấp nhận theo xác suất
+            if delta > 0 or random.random() < pow(2.71828, delta / temp):
+                current, current_value = neighbor, neighbor_value
+
+            temp *= cooling
+            if temp < 1e-3:  # nhiệt độ gần 0 thì dừng
+                break
+
+        self.drawxe(current, self.buttons_right)
+        print("Simulated Annealing kết thúc:", current, "Conflicts =", self.heuristic(current))
+
+
+    def genetic_algorithm(self, population_size=50, generations=200, mutation_rate=0.1):
+        # Khởi tạo quần thể: mỗi cá thể là mảng 8 số (mỗi hàng chọn 1 cột)
+        def random_state():
+            return [random.randint(0, 7) for _ in range(8)]
+
+        def fitness(state):
+            return -self.heuristic(state)  # ít xung đột hơn thì fitness cao
+
+        def crossover(parent1, parent2):
+            point = random.randint(1, 7)
+            child = parent1[:point] + parent2[point:]
+            return child
+
+        def mutate(state):
+            if random.random() < mutation_rate:
+                row = random.randint(0, 7)
+                state[row] = random.randint(0, 7)
+            return state
+
+        population = [random_state() for _ in range(population_size)]
+
+        for gen in range(generations):
+            # Tính fitness
+            scored = [(fitness(ind), ind) for ind in population]
+            scored.sort(reverse=True)
+
+            # Nếu đạt nghiệm tốt thì dừng
+            best_fit, best_ind = scored[0]
+            if best_fit == 0:
+                break
+
+            # Chọn lọc: lấy nửa tốt nhất
+            parents = [ind for _, ind in scored[:population_size // 2]]
+
+            # Tạo thế hệ mới
+            next_gen = []
+            while len(next_gen) < population_size:
+                p1, p2 = random.sample(parents, 2)
+                child = crossover(p1, p2)
+                child = mutate(child)
+                next_gen.append(child)
+
+            population = next_gen
+
+        self.drawxe(best_ind, self.buttons_right)
+        print("Genetic Algorithm kết thúc:", best_ind, "Conflicts =", self.heuristic(best_ind))
+
 
 class Node:
     def __init__(self, state, f_cost, g_cost=0, h_cost=0):
